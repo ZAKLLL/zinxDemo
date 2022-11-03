@@ -5,6 +5,7 @@ import (
 	"net"
 	"testing"
 	"time"
+	"zinxDemo/utils"
 )
 
 /*
@@ -16,7 +17,8 @@ func ClientTest() {
 	//3秒之后发起测试请求，给服务端开启服务的机会
 	time.Sleep(3 * time.Second)
 
-	conn, err := net.Dial("tcp", "127.0.0.1:7777")
+	addr := fmt.Sprintf("%s:%d", utils.GlobalObject.Host, utils.GlobalObject.TcpPort)
+	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		fmt.Println("client start err, exit!")
 		return
@@ -49,8 +51,9 @@ func TestServer(t *testing.T) {
 		服务端测试
 	*/
 	//1 创建一个server 句柄 s
-	s := NewServer("[zinx V0.1]")
+	s := NewServer()
 
+	//s.AddRouter(&MyRouter1{})
 	/*
 		客户端测试
 	*/

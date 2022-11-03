@@ -1,9 +1,11 @@
 package znet
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"time"
+	"zinxDemo/utils"
 	"zinxDemo/ziface"
 )
 
@@ -16,6 +18,27 @@ type Server struct {
 	IP string
 	// 服务绑定的端口
 	Port int
+	//当前Server由用户绑定的回调router,也就是Server注册的链接对应的处理业务
+	Router ziface.IRouter
+}
+
+//============== 定义当前客户端链接的handle api ===========
+func CallBackToClient(conn *net.TCPConn, data []byte, cnt int) error {
+	//回显业务
+	fmt.Println("[Conn Handle] CallBackToClient ... ")
+	if _, err := conn.Write(data[:cnt]); err != nil {
+		fmt.Println("write back buf err ", err)
+		return errors.New("CallBackToClient error")
+	}
+	return nil
+}
+
+type MyRouter1 struct {
+	BaseRouter
+}
+
+func (m MyRouter1) Handle(req ziface.IRequest) {
+	CallBackToClient(req.GetConnection().GetTcpConnection(), req.GetData(), 5)
 }
 
 func (s *Server) Start() {
@@ -35,27 +58,19 @@ func (s *Server) Start() {
 		}
 		fmt.Println("Start Zinx server  ", s.Name, " succ, now listenning...")
 
+		//TODO server.go 应该有一个自动生成ID的方法
+		var cid uint32 = 0
+
 		for {
 			conn, err := listener.AcceptTCP()
 			if err != nil {
 				fmt.Println("Accept err", err)
 				continue
 			}
-			//暂时做一个最大512字节的回显
-			go func() {
-				for {
-					buf := make([]byte, 512)
-					cnt, err := conn.Read(buf)
-					if err != nil {
-						fmt.Println("recv buf err ", err)
-						continue
-					}
-					if _, err := conn.Write(buf[:cnt]); err != nil {
-						fmt.Println("write back buf err ", err)
-						continue
-					}
-				}
-			}()
+			dealConn := NewConnection(conn, cid, s.Router)
+			cid++
+			//启动处理任务
+			go dealConn.Start()
 		}
 	}()
 }
@@ -75,12 +90,22 @@ func (s *Server) Serve() {
 	}
 }
 
-func NewServer(name string) ziface.IServer {
+func (s *Server) AddRouter(router ziface.IRouter) {
+	s.Router = router
+	fmt.Println("Add Router succ! ")
+}
+
+func NewServer() ziface.IServer {
+	config := utils.GlobalObject
+	//config.Reload()
+
 	s := &Server{
-		Name:      name,
+		Name:      config.Name,
 		IPVersion: "tcp4",
-		IP:        "0.0.0.0",
-		Port:      7777,
+		IP:        config.Host,
+		Port:      config.TcpPort,
+		Router:    &BaseRouter{},
 	}
+	config.TcpServer = s
 	return s
 }
