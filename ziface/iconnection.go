@@ -9,6 +9,7 @@ type IConnection interface {
 	GetTcpConnection() *net.TCPConn
 	GetConnID() uint32
 	RemoteAddr() net.Addr
+	SendMsg(msgId uint32, data []byte) error
 }
 
 //统一处理链接业务的接口

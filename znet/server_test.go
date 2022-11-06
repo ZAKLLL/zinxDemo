@@ -2,6 +2,7 @@ package znet
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"testing"
 	"time"
@@ -24,24 +25,73 @@ func ClientTest() {
 		return
 	}
 
-	for {
-		_, err := conn.Write([]byte("hello ZINX"))
-		if err != nil {
-			fmt.Println("write error err ", err)
-			return
+	var idx uint32 = 0
+	dp := &DataPack{}
+
+	go func() {
+		for {
+			headData := make([]byte, dp.GetHeadLen())
+
+			//buf := make([]byte, 512)
+			_, err := io.ReadFull(conn, headData)
+			if err != nil {
+				fmt.Println("recv Head err", err)
+				continue
+			}
+			//将headData字节流 拆包到msg中
+			msgHead, err := dp.Unpack(headData)
+			if err != nil {
+				fmt.Println("client unpack err:", err)
+				return
+			}
+
+			if msgHead.GetDataLen() > 0 {
+				msg := msgHead.(*Message)
+				msg.Data = make([]byte, msg.GetDataLen())
+				//根据dataLen从io中读取字节流
+				_, err := io.ReadFull(conn, msg.Data)
+				if err != nil {
+					fmt.Println("client unpack data err:", err)
+					return
+				}
+				fmt.Println("client===========> Recv Msg: ID=", msg.Id, ", len=", msg.DataLen, ", data=", string(msg.Data))
+
+			}
+
 		}
+	}()
 
-		buf := make([]byte, 512)
-		cnt, err := conn.Read(buf)
-		if err != nil {
-			fmt.Println("read buf error ")
-			return
+	//发送数据
+	go func() {
+		for {
+			msg := Message{
+				Id:      idx,
+				DataLen: 0,
+				Data:    nil,
+			}
+			idx++
+
+			data := fmt.Sprintf("hello 现在是北京时间 %s", time.Now().Local().Format("2006/01/02 15:04:05"))
+			bytes := []byte(data)
+			msg.SetData(bytes)
+			msg.SetDataLen(uint32(len(bytes)))
+			packedData, err := dp.Pack(&msg)
+			if err != nil {
+				fmt.Println("pack msg error", err)
+				return
+			}
+
+			_, err = conn.Write(packedData)
+
+			if err != nil {
+				fmt.Println("conn write error", err)
+				return
+			}
+
+			time.Sleep(5 * time.Second)
 		}
+	}()
 
-		fmt.Printf(" server call back : %s, cnt = %d\n", buf[:cnt], cnt)
-
-		time.Sleep(1 * time.Second)
-	}
 }
 
 // Server 模块的测试函数
@@ -53,7 +103,7 @@ func TestServer(t *testing.T) {
 	//1 创建一个server 句柄 s
 	s := NewServer()
 
-	//s.AddRouter(&MyRouter1{})
+	s.AddRouter(&MyRouter1{})
 	/*
 		客户端测试
 	*/

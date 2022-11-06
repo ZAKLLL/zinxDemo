@@ -3,6 +3,7 @@ package znet
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"time"
 	"zinxDemo/utils"
@@ -23,10 +24,19 @@ type Server struct {
 }
 
 //============== 定义当前客户端链接的handle api ===========
-func CallBackToClient(conn *net.TCPConn, data []byte, cnt int) error {
+func CallBackToClient(conn *net.TCPConn, data []byte) error {
 	//回显业务
-	fmt.Println("[Conn Handle] CallBackToClient ... ")
-	if _, err := conn.Write(data[:cnt]); err != nil {
+	fmt.Println("server ------------------>" + string(data))
+
+	backData := []byte("hi from zinxServer" + string(data))
+
+	dpPack := &DataPack{}
+	pack, err := dpPack.Pack(NewMsgPackage(rand.Uint32(), backData))
+	if err != nil {
+		fmt.Println("dpPack.Pack error", err)
+		return err
+	}
+	if _, err := conn.Write(pack); err != nil {
 		fmt.Println("write back buf err ", err)
 		return errors.New("CallBackToClient error")
 	}
@@ -38,7 +48,7 @@ type MyRouter1 struct {
 }
 
 func (m MyRouter1) Handle(req ziface.IRequest) {
-	CallBackToClient(req.GetConnection().GetTcpConnection(), req.GetData(), 5)
+	CallBackToClient(req.GetConnection().GetTcpConnection(), req.GetData())
 }
 
 func (s *Server) Start() {

@@ -10,7 +10,7 @@ import (
 
 func TestClient(t *testing.T) {
 
-	conn, err := net.Dial("tcp", "127.0.0.1:7777")
+	conn, err := net.Dial("tcp", "127.0.0.1:8081")
 	if err != nil {
 		fmt.Println("net dial error", err)
 	}
