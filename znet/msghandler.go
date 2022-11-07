@@ -18,7 +18,7 @@ func NewMsgHandle() *MsgHandle {
 }
 
 //马上以非阻塞方式处理消息
-func (mh *MsgHandle) DoMsgHandler(request ziface.IRequest) {
+func (mh *MsgHandle) DoMsgHandle(request ziface.IRequest) {
 	handler, ok := mh.Apis[request.GetMsgId()]
 	for !ok {
 		fmt.Println("api msgId= ", request.GetMsgId(), "is not Found")

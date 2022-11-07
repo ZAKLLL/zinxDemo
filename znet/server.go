@@ -20,7 +20,8 @@ type Server struct {
 	// 服务绑定的端口
 	Port int
 	//当前Server由用户绑定的回调router,也就是Server注册的链接对应的处理业务
-	Router ziface.IRouter
+	//Router ziface.IRouter
+	msgHandler ziface.IMsgHandle
 }
 
 //============== 定义当前客户端链接的handle api ===========
@@ -47,7 +48,7 @@ type MyRouter1 struct {
 	BaseRouter
 }
 
-func (m MyRouter1) Handle(req ziface.IRequest) {
+func (m *MyRouter1) Handle(req ziface.IRequest) {
 	CallBackToClient(req.GetConnection().GetTcpConnection(), req.GetData())
 }
 
@@ -77,7 +78,7 @@ func (s *Server) Start() {
 				fmt.Println("Accept err", err)
 				continue
 			}
-			dealConn := NewConnection(conn, cid, s.Router)
+			dealConn := NewConnection(conn, cid, s.msgHandler)
 			cid++
 			//启动处理任务
 			go dealConn.Start()
@@ -100,9 +101,9 @@ func (s *Server) Serve() {
 	}
 }
 
-func (s *Server) AddRouter(router ziface.IRouter) {
-	s.Router = router
-	fmt.Println("Add Router succ! ")
+func (s *Server) AddRouter(msgId uint32, router ziface.IRouter) {
+	s.msgHandler.AddRouter(msgId, router)
+	fmt.Println("Add Router for ", msgId, " succ! ")
 }
 
 func NewServer() ziface.IServer {
@@ -110,11 +111,11 @@ func NewServer() ziface.IServer {
 	//config.Reload()
 
 	s := &Server{
-		Name:      config.Name,
-		IPVersion: "tcp4",
-		IP:        config.Host,
-		Port:      config.TcpPort,
-		Router:    &BaseRouter{},
+		Name:       config.Name,
+		IPVersion:  "tcp4",
+		IP:         config.Host,
+		Port:       config.TcpPort,
+		msgHandler: NewMsgHandle(),
 	}
 	config.TcpServer = s
 	return s
