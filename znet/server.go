@@ -1,9 +1,7 @@
 package znet
 
 import (
-	"errors"
 	"fmt"
-	"math/rand"
 	"net"
 	"time"
 	"zinxDemo/utils"
@@ -24,38 +22,27 @@ type Server struct {
 	msgHandler ziface.IMsgHandle
 }
 
-//============== 定义当前客户端链接的handle api ===========
-func CallBackToClient(conn *net.TCPConn, data []byte) error {
-	//回显业务
-	fmt.Println("server ------------------>" + string(data))
-
-	backData := []byte("hi from zinxServer" + string(data))
-
-	dpPack := &DataPack{}
-	pack, err := dpPack.Pack(NewMsgPackage(rand.Uint32(), backData))
-	if err != nil {
-		fmt.Println("dpPack.Pack error", err)
-		return err
-	}
-	if _, err := conn.Write(pack); err != nil {
-		fmt.Println("write back buf err ", err)
-		return errors.New("CallBackToClient error")
-	}
-	return nil
-}
-
 type MyRouter1 struct {
 	BaseRouter
 }
 
-func (m *MyRouter1) Handle(req ziface.IRequest) {
-	CallBackToClient(req.GetConnection().GetTcpConnection(), req.GetData())
-}
+//func (m MyRouter1) Handle(req ziface.IRequest) {
+//
+//	//回显业务
+//	fmt.Println("server ------------------>" + string(req.GetData()))
+//
+//	backData := []byte("hi from zinxServer" + string(req.GetData()))
+//
+//	req.GetConnection().SendMsg(1, backData)
+//}
 
 func (s *Server) Start() {
 	fmt.Printf("[START] Serve listenner at IP: %s, Port %d, is starting\n", s.IP, s.Port)
 
 	go func() {
+
+		s.msgHandler.StartWorkerPool()
+
 		//1 获取一个TCP的Addr
 		addr, err := net.ResolveTCPAddr(s.IPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
 		if err != nil {

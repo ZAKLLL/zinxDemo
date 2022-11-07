@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 	"zinxDemo/utils"
-	"zinxDemo/ziface"
 )
 
 /*
@@ -97,11 +96,6 @@ func ClientTest() {
 
 type MyRouter2 struct {
 	BaseRouter
-}
-
-func (router2 *MyRouter2) Handle(request ziface.IRequest) {
-	fmt.Println("this is Myrouter2' handle :", request.GetMsgId())
-
 }
 
 // Server 模块的测试函数
