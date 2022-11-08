@@ -2,6 +2,6 @@
   "Name": "demo server",
   "Host": "127.0.0.1",
   "TcpPort": 8081,
-  "MaxConn": 3,
+  "MaxConn": 1,
   "WorkerPoolSize": 10
 }

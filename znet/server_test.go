@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 	"zinxDemo/utils"
+	"zinxDemo/ziface"
 )
 
 /*
@@ -36,7 +37,7 @@ func ClientTest() {
 			_, err := io.ReadFull(conn, headData)
 			if err != nil {
 				fmt.Println("recv Head err", err)
-				continue
+				return
 			}
 			//将headData字节流 拆包到msg中
 			msgHead, err := dp.Unpack(headData)
@@ -65,7 +66,7 @@ func ClientTest() {
 	go func() {
 		for {
 			msg := Message{
-				Id:      idx % 2,
+				Id:      0,
 				DataLen: 0,
 				Data:    nil,
 			}
@@ -94,8 +95,14 @@ func ClientTest() {
 
 }
 
-type MyRouter2 struct {
-	BaseRouter
+//该Server的连接创建时Hook函数
+func MyOnConnStart(conn ziface.IConnection) {
+	fmt.Println("hi conn", conn.GetConnID())
+}
+
+//该Server的连接断开时的Hook函数
+func MyOnConnStop(conn ziface.IConnection) {
+
 }
 
 // Server 模块的测试函数
@@ -106,12 +113,13 @@ func TestServer(t *testing.T) {
 	*/
 	//1 创建一个server 句柄 s
 	s := NewServer()
+	s.SetOnConnStart(MyOnConnStart)
 
 	s.AddRouter(0, &MyRouter1{})
-	s.AddRouter(1, &MyRouter2{})
 	/*
 		客户端测试
 	*/
+	go ClientTest()
 	go ClientTest()
 
 	//2 开启服务

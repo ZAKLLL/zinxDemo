@@ -9,5 +9,6 @@ type IConnection interface {
 	GetTcpConnection() *net.TCPConn
 	GetConnID() uint32
 	RemoteAddr() net.Addr
-	SendMsg(msgId uint32, data []byte) error
+	SendMsg(msgId uint32, data []byte) error     //发送消息，无缓冲
+	SendBuffMsg(msgId uint32, data []byte) error //发送缓冲消息
 }

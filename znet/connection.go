@@ -1,6 +1,7 @@
 package znet
 
 import (
+	"errors"
 	"fmt"
 	io "io"
 	"net"
@@ -9,6 +10,9 @@ import (
 )
 
 type Connection struct {
+	//隶属于哪个服务
+	TcpServer ziface.IServer
+
 	Conn     *net.TCPConn
 	ConnID   uint32
 	isClosed bool
@@ -22,18 +26,26 @@ type Connection struct {
 
 	//无缓冲管道，用于读、写两个goroutine之间的消息通信
 	msgChan chan []byte
+
+	//有缓冲管道，用于读、写两个goroutine之间的消息通信
+	msgBuffChan chan []byte
 }
 
 //创建新链接
-func NewConnection(conn *net.TCPConn, connId uint32, msgHandler ziface.IMsgHandle) *Connection {
+func NewConnection(server ziface.IServer, conn *net.TCPConn, connId uint32, msgHandler ziface.IMsgHandle) *Connection {
 	c := &Connection{
+		TcpServer:    server,
 		Conn:         conn,
 		ConnID:       connId,
 		isClosed:     false,
 		MsgHandler:   msgHandler,
 		ExitBuffchan: make(chan bool),
 		msgChan:      make(chan []byte),
+		msgBuffChan:  make(chan []byte, utils.GlobalObject.MaxMsgChanLen), //不要忘记初始化
+
 	}
+	//将当前链接关联到server的链接管理器中
+	server.GetConnMgr().Add(c)
 	return c
 }
 
@@ -80,7 +92,6 @@ func (c *Connection) StartReader() {
 			if utils.GlobalObject.WorkerPoolSize > 0 {
 				c.MsgHandler.SendMsgToTaskQueue(&req)
 			}
-			go c.MsgHandler.DoMsgHandle(&req)
 		}
 
 	}
@@ -98,6 +109,17 @@ func (c *Connection) StartWriter() {
 				fmt.Println("Send Data error:, ", err, " Conn Writer exit")
 				return
 			}
+		case data, ok := <-c.msgBuffChan:
+			if ok {
+				//有数据要写给客户端
+				if _, err := c.Conn.Write(data); err != nil {
+					fmt.Println("Send Buff Data error:, ", err, " Conn Writer exit")
+					return
+				}
+			} else {
+				fmt.Println("msgBuffChan is Closed")
+				break
+			}
 		case <-c.ExitBuffchan:
 			//conn 已经关闭
 			return
@@ -111,6 +133,9 @@ func (c *Connection) Start() {
 	go c.StartReader()
 
 	go c.StartWriter()
+
+	c.TcpServer.CallOnConnStart(c)
+
 	for {
 		select {
 		case <-c.ExitBuffchan:
@@ -127,6 +152,7 @@ func (c *Connection) Stop() {
 	c.isClosed = true
 
 	//TODO Connection Stop() 如果用户注册了该链接的关闭回调业务，那么在此刻应该显示调用
+	c.TcpServer.CallOnConnStop(c)
 
 	c.Conn.Close()
 	c.ExitBuffchan <- true
@@ -155,6 +181,22 @@ func (c *Connection) SendMsg(msgId uint32, data []byte) error {
 	}
 	//将消息发送到writechannel 中让Writer发送给客户端
 	c.msgChan <- packData
+
+	return nil
+}
+
+func (c *Connection) SendBuffMsg(msgId uint32, data []byte) error {
+	if c.isClosed == true {
+		return errors.New("Connection closed when send buff msg")
+	}
+	dp := &DataPack{}
+	packData, err := dp.Pack(NewMsgPackage(msgId, data))
+	if err != nil {
+		fmt.Println("db pack error ", err)
+		c.ExitBuffchan <- true
+		return err
+	}
+	c.msgBuffChan <- packData
 
 	return nil
 }
