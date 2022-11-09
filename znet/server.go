@@ -39,6 +39,15 @@ type MyRouter1 struct {
 	BaseRouter
 }
 
+func (c *MyRouter1) Handle(request ziface.IRequest) {
+
+	property, err := request.GetConnection().GetProperty("connName")
+	if err != nil {
+		return
+	}
+	fmt.Println("myrouter1 Handle get property connName", property)
+}
+
 func (s *Server) Start() {
 	fmt.Printf("[START] Serve listenner at IP: %s, Port %d, is starting\n", s.IP, s.Port)
 
@@ -107,17 +116,17 @@ func (s *Server) GetConnMgr() ziface.IConnManager {
 	return s.ConnMgr
 }
 
-//设置该Server的连接创建时Hook函数
+// 设置该Server的连接创建时Hook函数
 func (s *Server) SetOnConnStart(hookFunc func(ziface.IConnection)) {
 	s.OnConnStart = hookFunc
 }
 
-//设置该Server的连接断开时的Hook函数
+// 设置该Server的连接断开时的Hook函数
 func (s *Server) SetOnConnStop(hookFunc func(ziface.IConnection)) {
 	s.OnConnStop = hookFunc
 }
 
-//调用连接OnConnStart Hook函数
+// 调用连接OnConnStart Hook函数
 func (s *Server) CallOnConnStart(conn ziface.IConnection) {
 	if s.OnConnStart != nil {
 		fmt.Println("---> CallOnConnStart....")
@@ -125,7 +134,7 @@ func (s *Server) CallOnConnStart(conn ziface.IConnection) {
 	}
 }
 
-//调用连接OnConnStop Hook函数
+// 调用连接OnConnStop Hook函数
 func (s *Server) CallOnConnStop(conn ziface.IConnection) {
 	if s.OnConnStop != nil {
 		fmt.Println("---> CallOnConnStop....")

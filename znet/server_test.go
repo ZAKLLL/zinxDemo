@@ -95,14 +95,18 @@ func ClientTest() {
 
 }
 
-//该Server的连接创建时Hook函数
+// 该Server的连接创建时Hook函数
 func MyOnConnStart(conn ziface.IConnection) {
 	fmt.Println("hi conn", conn.GetConnID())
+	conn.SetProperty("connName", "connnnnnnnnnnnnnnnnnnn1")
 }
 
-//该Server的连接断开时的Hook函数
+// 该Server的连接断开时的Hook函数
 func MyOnConnStop(conn ziface.IConnection) {
-
+	property, err := conn.GetProperty("connName")
+	if err != nil {
+		fmt.Println("------------------------------->", property)
+	}
 }
 
 // Server 模块的测试函数
@@ -116,12 +120,15 @@ func TestServer(t *testing.T) {
 	s.SetOnConnStart(MyOnConnStart)
 
 	s.AddRouter(0, &MyRouter1{})
-	/*
-		客户端测试
-	*/
-	go ClientTest()
-	go ClientTest()
 
 	//2 开启服务
 	s.Serve()
+}
+func TestClient(t *testing.T) {
+
+	ClientTest()
+
+	for {
+		time.Sleep(10 * time.Second)
+	}
 }

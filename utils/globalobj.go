@@ -7,8 +7,8 @@ import (
 )
 
 /*
-	存储一切有关Zinx框架的全局参数，供其他模块使用
-	一些参数也可以通过 用户根据 zinx.json来配置
+存储一切有关Zinx框架的全局参数，供其他模块使用
+一些参数也可以通过 用户根据 zinx.json来配置
 */
 type GlobalObj struct {
 	TcpServer ziface.IServer //当前Zinx的全局Server对象
@@ -41,7 +41,7 @@ func (g *GlobalObj) Reload() {
 }
 
 /*
-	提供init方法，默认加载
+提供init方法，默认加载
 */
 func init() {
 	//初始化GlobalObject变量，设置一些默认值
@@ -54,7 +54,7 @@ func init() {
 		MaxPacketSize:  4096,
 		WorkerPoolSize: 1024,
 		MaxMsgChanLen:  1024 * 10,
-		ConfigPath:     "D:\\projects\\zinxDemo\\conf\\zinx.json",
+		ConfigPath:     "../conf/zinx.json",
 	}
 
 	//从配置文件中加载一些用户配置的参数

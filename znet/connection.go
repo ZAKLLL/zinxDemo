@@ -5,6 +5,7 @@ import (
 	"fmt"
 	io "io"
 	"net"
+	"sync"
 	"zinxDemo/utils"
 	"zinxDemo/ziface"
 )
@@ -29,9 +30,12 @@ type Connection struct {
 
 	//有缓冲管道，用于读、写两个goroutine之间的消息通信
 	msgBuffChan chan []byte
+
+	properties     map[string]interface{}
+	propertiesLock sync.RWMutex
 }
 
-//创建新链接
+// 创建新链接
 func NewConnection(server ziface.IServer, conn *net.TCPConn, connId uint32, msgHandler ziface.IMsgHandle) *Connection {
 	c := &Connection{
 		TcpServer:    server,
@@ -42,7 +46,7 @@ func NewConnection(server ziface.IServer, conn *net.TCPConn, connId uint32, msgH
 		ExitBuffchan: make(chan bool),
 		msgChan:      make(chan []byte),
 		msgBuffChan:  make(chan []byte, utils.GlobalObject.MaxMsgChanLen), //不要忘记初始化
-
+		properties:   make(map[string]interface{}),
 	}
 	//将当前链接关联到server的链接管理器中
 	server.GetConnMgr().Add(c)
@@ -62,7 +66,7 @@ func (c *Connection) StartReader() {
 		if err != nil {
 			fmt.Println("recv Head err", err)
 			c.ExitBuffchan <- true
-			continue
+			return
 		}
 		//将headData字节流 拆包到msg中
 		msgHead, err := dp.Unpack(headData)
@@ -121,6 +125,7 @@ func (c *Connection) StartWriter() {
 				break
 			}
 		case <-c.ExitBuffchan:
+			c.TcpServer.GetConnMgr().Remove(c)
 			//conn 已经关闭
 			return
 		}
@@ -139,6 +144,7 @@ func (c *Connection) Start() {
 	for {
 		select {
 		case <-c.ExitBuffchan:
+			c.TcpServer.GetConnMgr().Remove(c)
 			//接收到退出的消息直接退出
 			return
 		}
@@ -199,4 +205,29 @@ func (c *Connection) SendBuffMsg(msgId uint32, data []byte) error {
 	c.msgBuffChan <- packData
 
 	return nil
+}
+
+// 设置属性值
+func (c *Connection) SetProperty(key string, value interface{}) {
+	c.propertiesLock.Lock()
+	defer c.propertiesLock.Unlock()
+	c.properties[key] = value
+}
+
+// 读取属性值
+func (c *Connection) GetProperty(key string) (interface{}, error) {
+	c.propertiesLock.RLock()
+	defer c.propertiesLock.RUnlock()
+	if value, ok := c.properties[key]; ok {
+		return value, nil
+	} else {
+		return nil, errors.New("no property found by key :" + key)
+	}
+}
+
+// 删除属性值
+func (c *Connection) RemoveProperty(key string) {
+	c.propertiesLock.Lock()
+	defer c.propertiesLock.Unlock()
+	delete(c.properties, key)
 }
